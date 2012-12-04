@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module SoOSiM.Components.MemoryManager.Types where
 
 import SoOSiM
@@ -9,18 +10,14 @@ data MemorySource
   , scope       :: Int
   , sourceId    :: Maybe ComponentId
   }
-  deriving Show
-
 
 data MemState =
   MemState { addressLookup :: [MemorySource]
-           , fallback      :: ComponentId
            }
-  deriving Show
 
-data MemCommand = Register Int Int (Maybe ComponentId)
+data MemCommand = Register MemorySource
                 | Read     Int
-                | Write    Int Dynamic
-                | SyncWrite Int Dynamic
-                | NewState MemState
+                | forall a . Typeable a => Write Int a
   deriving Typeable
+
+data MemoryManager = MemoryManager

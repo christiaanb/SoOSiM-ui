@@ -7,10 +7,10 @@ module Graphics.Diagrams.Transformations.SimState2MultiCoreStatus
 
 -- External imports
 import           Control.Concurrent.STM
+import           Data.Dynamic           (Dynamic)
 import           Data.Maybe             (listToMaybe)
 import qualified Data.IntMap            as I
 import qualified SoOSiM.Types           as S
-import           Unique
 
 -- Internal imports
 import Graphics.Diagrams.MultiCoreStatus
@@ -45,27 +45,28 @@ component2RunningElement mcs (i, c) = do
   state <- compStateState c
   stats <- compStatistics c
   return $ Component pid name state Nothing stats
- where pid = show (getUnique i)
+ where pid = show i
 
 -- | Obtains the component name from its context
 compStateName :: S.ComponentContext -> IO String
-compStateName (S.CC _ _ s _ _ _ _) =
-  fmap S.componentName $ readTVarIO s
+compStateName (S.CC s _ _ _ _ _ _ _) =
+  return $ S.componentName s
 
 -- | Obtains the component state from its context
 compStateState :: S.ComponentContext -> IO ElementState
-compStateState (S.CC _ s _ _ mb _ _) = do
+compStateState (S.CC _ _ _ s _ mb _ _) = do
   s' <- readTVarIO s
   mb' <- readTVarIO mb
-  case s' of
-    S.Running           -> return Active
-    S.WaitingForMsg _ _ -> return Waiting
-    S.Idle              -> if (null mb')
-                              then (return Idle)
-                              else (return Active)
+  return $ case (s', mb') of
+            (S.Running _ _   , _)  -> Active
+            (S.WaitingFor _ _, _)  -> Waiting
+            (S.ReadyToIdle   , []) -> Idle
+            (S.ReadyToIdle   , _)  -> Active
+            (S.ReadyToRun    , _)  -> Active
+            (S.Killed        , _)  -> Idle
 
 compStatistics :: S.ComponentContext -> IO Statistics
-compStatistics (S.CC _cid csu cse _cr _buf trc smd) = do
+compStatistics (S.CC _ _ _ _ _ _ trc smd) = do
     metaData <- readTVarIO smd
 
     return $ Statistics (S.cyclesRunning metaData)
@@ -76,9 +77,9 @@ compStatistics (S.CC _cid csu cse _cr _buf trc smd) = do
 
 -- | Transforms the SoOSiM messages into MultiCore description messages
 collectMessages :: [(Int, S.Node)] -> (Int, S.Node) -> IO [Message]
-collectMessages nodes (nid,n) = do
-  msgs <- mapM (collectMessagesCC nodes nid) $ I.toList $ S.nodeComponents n
-  return $ concat msgs
+collectMessages nodes (nid,n) = concatMapM getMessages nodeComponentsL
+ where nodeComponentsL = I.toList $ S.nodeComponents n
+       getMessages     = collectMessagesCC nodes nid
 
 -- | Gets the list of messages from a given node and component
 collectMessagesCC :: [(Int, S.Node)] -> Int -> (Int, S.ComponentContext) -> IO [Message]
@@ -88,27 +89,26 @@ collectMessagesCC nodes nid (cid, cc) = do
   return $ concat msgs
 
 -- | Transforms an input SoOSiM message into a MCS message
-collectMessagesInput :: [(Int, S.Node)] -> Int -> Int -> S.ComponentInput -> IO [Message]
+collectMessagesInput :: [(Int, S.Node)] -> Int -> Int -> S.Input a -> IO [Message]
 collectMessagesInput nodes nid cid input
-
- | (S.ComponentMsg sid _) <- input
- , Just senderNode <- findComponentNode sid nodes
- = return [ Message [show senderNode, show sid] dest "" ]
-
- | (S.NodeMsg sid _) <- input
- = return [ Message [show sid] dest "" ]
+ | (S.Message _ sender) <- input
+ , Just senderNode <- findComponentNode (fst $ S.unRA sender) nodes
+ = return [ Message [show senderNode, show (fst $ S.unRA sender)] dest "" ]
 
  | otherwise
  = return []
 
- where dest = map (show . getUnique) [nid, cid]
+ where dest = map show [nid, cid]
 
 -- | Gets the list of pending inputs from a component context
-compPendingInputs :: S.ComponentContext -> IO [S.ComponentInput]
-compPendingInputs (S.CC _ _ _ _ b _ _) = readTVarIO b
+compPendingInputs :: S.ComponentContext -> IO [S.Input Dynamic]
+compPendingInputs (S.CC _ _ _ _ _ b _ _) = readTVarIO b
 
 -- | Returns the node id of the node that the given component is running in,
 -- if any.
 findComponentNode :: S.ComponentId -> [(Int, S.Node)] -> Maybe S.NodeId
 findComponentNode cid ns = listToMaybe
-  [ S.nodeId n | (_,n) <- ns, I.member (getKey cid) (S.nodeComponents n) ]
+  [ S.nodeId n | (_,n) <- ns, I.member cid (S.nodeComponents n) ]
+
+concatMapM :: (Functor m, Monad m) => (a -> m [b]) -> [a] -> m [b]
+concatMapM f = fmap concat . mapM f

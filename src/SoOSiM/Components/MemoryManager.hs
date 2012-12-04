@@ -1,65 +1,51 @@
+{-# LANGUAGE TypeFamilies #-}
 module SoOSiM.Components.MemoryManager where
 
-import Data.IntMap
 import SoOSiM
 
 import SoOSiM.Components.MemoryManager.Types
 import SoOSiM.Components.MemoryManager.Util
 
-memoryManager :: MemState -> ComponentInput -> SimM MemState
-memoryManager s (ComponentMsg senderId msgContent)
-  | Just (NewState s') <- fromDynamic msgContent
-  = yield s'
-
-  | Just (Register addr sc src) <- fromDynamic msgContent
-  = yield $ s {addressLookup = (MemorySource addr sc src):(addressLookup s)}
-
-  | Just (Read addr) <- fromDynamic msgContent
+memoryManager :: MemState -> Input MemCommand -> Sim MemState
+memoryManager s (Message content caller)
+  | Register memorySource <- content
   = do
-    let src = checkAddress (fallback s) (addressLookup s) addr
+    respond MemoryManager caller undefined
+    yield $ s {addressLookup = memorySource:(addressLookup s)}
+
+  | Read addr <- content
+  = do
+    let src = checkAddress (addressLookup s) addr
     case (sourceId src) of
       Nothing -> do
-        traceMsg ("Reading addr: " ++ show addr ++ " for component: " ++ show senderId)
-        addrVal <- readMemory Nothing addr
-        invokeNoWait Nothing senderId addrVal
+        addrVal <- readMemory addr
+        respond MemoryManager caller addrVal
         yield s
       Just remote -> do
-        traceMsg ("Forwarding read of addr: " ++ show addr ++ " to: " ++ show remote)
-        response <- invoke Nothing remote msgContent
-        invokeNoWait Nothing senderId response
+        response <- invoke MemoryManager remote content
+        respond MemoryManager caller response
         yield s
 
-  | Just (Write addr val) <- fromDynamic msgContent
+  | Write addr val <- content
   = do
-    let src = checkAddress (fallback s) (addressLookup s) addr
+    let src = checkAddress (addressLookup s) addr
     case (sourceId src) of
       Nothing -> do
-        traceMsg ("Writing addr: " ++ show addr ++ " for component: " ++ show senderId)
-        addrVal <- writeMemory Nothing addr val
+        addrVal <- writeMemory addr val
+        respond MemoryManager caller undefined
         yield s
       Just remote -> do
-        traceMsg ("Forwarding write of addr: " ++ show addr ++ " to: " ++ show remote)
-        invokeNoWait Nothing remote msgContent
+        cId <- getComponentId
+        invokeAsync MemoryManager remote content
+          (\_ -> respondS MemoryManager (Just cId) caller undefined)
         yield s
 
-  | Just (SyncWrite addr val) <- fromDynamic msgContent
-  = do
-    let src = checkAddress (fallback s) (addressLookup s) addr
-    case (sourceId src) of
-      Nothing -> do
-        traceMsg ("Writing addr: " ++ show addr ++ " for component: " ++ show senderId)
-        addrVal <- writeMemory Nothing addr val
-        invokeNoWait Nothing senderId (toDyn ())
-        yield s
-      Just remote -> do
-        traceMsg ("Forwarding write of addr: " ++ show addr ++ " to: " ++ show remote)
-        _ <- invoke Nothing remote msgContent
-        invokeNoWait Nothing senderId (toDyn ())
-        yield s
+memoryManager s _ = yield s
 
-memoryManager s _ = return s
-
-instance ComponentIface MemState where
-  initState          = MemState [] (error "MemoryManager has no fallback")
-  componentName _    = "MemoryManager"
-  componentBehaviour = memoryManager
+instance ComponentInterface MemoryManager where
+  type State   MemoryManager = MemState
+  type Receive MemoryManager = MemCommand
+  type Send    MemoryManager = Dynamic
+  initState _                = (MemState [])
+  componentName _            = "MemoryManager"
+  componentBehaviour _       = memoryManager

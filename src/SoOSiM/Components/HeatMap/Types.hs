@@ -1,27 +1,23 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module SoOSiM.Components.HeatMap.Types where
 
-import SoOSiM
-import SoOSiM.Components.Types.Code
+import Control.Concurrent.STM
 import Data.IntMap
 
-data HMMsg = NewState HMWorker
+import SoOSiM
+
+data HMMsg = NewState HMWorker | Compute | Done
   deriving (Eq, Typeable)
 
 data HMState = HMState
-  { workers   :: IntMap AppMsg
-  , workpackages :: [HMWorker]
+  { workers   :: TVar (IntMap HMMsg)
   , arraySize :: (Int,Int)
   , transfer  :: (Float,Float,Float)
   }
 
-data HMWorker
-  = HMWorker
+data HMWorker = HMWorker
   { wrLoc     :: Int
   , rdLocs    :: (Int,[Int],[Int])
   , wtransfer :: (Float,Float,Float)
   }
-  | HMEmpty
   deriving (Eq, Typeable)
-
-hmAppData = AppData [("HeatMap","HeatMap",ResourceReq),("HeatMapWorker","HeatMapWorker",ResourceReq)]

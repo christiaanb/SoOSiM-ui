@@ -3,7 +3,7 @@
 module Controller.Helpers.NextSimState where
 
 -- External imports
-import SoOSiM.Simulator (execStep,execStepSmall)
+import SoOSiM       (tick)
 import SoOSiM.Types (SimState)
 
 -- Internal imports
@@ -24,7 +24,7 @@ nextStep (sys,ss) =
 nextStep' :: (SystemStatus, SimState) -> IO (SystemStatus, SimState)
 nextStep' (sys,ss) = do
  let mcs = present history
- ns   <- execStep ss
+ ns   <- tick ss
  mcs' <- updateFromSimState mcs ns
  let sys' = sys { multiCoreStatus = historyBranch history mcs' }
  return (sys',ns)
@@ -42,7 +42,7 @@ nextStepSmall (sys,ss) =
 nextStepSmall' :: (SystemStatus, SimState) -> IO (SystemStatus, SimState)
 nextStepSmall' (sys,ss) = do
  let mcs = present history
- ns   <- execStepSmall ss
+ ns   <- tick ss
  mcs' <- updateFromSimState mcs ns
  let sys' = sys { multiCoreStatus = historyBranch history mcs' }
  return (sys',ns)

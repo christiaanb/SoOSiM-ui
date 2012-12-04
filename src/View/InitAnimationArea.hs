@@ -15,7 +15,7 @@ import             Graphics.UI.Gtk hiding (Color, Point, Size, LeftButton, Right
 import Config.Config
 import Data.Tuple4
 import Data.History
-import SoOSiM.Types
+import SoOSiM.Types hiding (State)
 import View.Objects
 import Model.SystemStatus
 

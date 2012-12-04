@@ -65,9 +65,9 @@ Executable SoOSiM-ui
                , gloss-gtk
                , keera-callbacks
                , SoOSiM
+               , concurrent-supply
 
                , base >= 4.0 && < 5.0
-               , ghc  
                , containers
                , IfElse
                , mtl
