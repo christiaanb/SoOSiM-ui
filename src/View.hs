@@ -19,7 +19,7 @@ import Config.Config
 import Data.History
 import Graphics.Diagrams.MultiCoreStatus
 import Model.SystemStatus
-import SoOSiM.Samples.Initializer
+import SoOSiM.Examples.Example1
 import View.InitAnimationArea
 import View.InitIconsInfoArea
 import View.Tooltips

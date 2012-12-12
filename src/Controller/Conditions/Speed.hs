@@ -28,7 +28,7 @@ import Data.History
 import Graphics.Diagrams.MultiCoreStatus
 import Model.Model
 import Model.SystemStatus
-import SoOSiM.Samples.Initializer
+import SoOSiM.Examples.Example1
 import View.InitAnimationArea
 
 -- | Adjusts the system speed and running/paused status

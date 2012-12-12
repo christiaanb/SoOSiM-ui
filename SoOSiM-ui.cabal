@@ -65,6 +65,7 @@ Executable SoOSiM-ui
                , gloss-gtk
                , keera-callbacks
                , SoOSiM
+               , SoOSiM-components >= 0.1.0.0
                , concurrent-supply
 
                , base >= 4.0 && < 5.0
@@ -116,18 +117,6 @@ Executable SoOSiM-ui
                     Model.ReactiveModel.ReactiveModelInternals
                     Paths
                     Paths.CustomPaths
-                    SoOSiM.Components.HeatMap.Application
-                    SoOSiM.Components.HeatMap.Types
-                    SoOSiM.Components.HeatMap.Util
-                    SoOSiM.Components.Initializer
-                    SoOSiM.Components.MemoryManager
-                    SoOSiM.Components.MemoryManager.Types
-                    SoOSiM.Components.MemoryManager.Util
-                    SoOSiM.Components.ResourceDiscovery
-                    SoOSiM.Components.ResourceDiscovery.Types
-                    SoOSiM.Components.Scheduler
-                    SoOSiM.Components.Scheduler.Types
-                    SoOSiM.Samples.Initializer
                     View
                     View.InitAnimationArea
                     View.InitIconsInfoArea
